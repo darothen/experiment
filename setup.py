@@ -5,6 +5,8 @@ import warnings
 
 from setuptools import setup, find_packages
 
+from textwrap import dedent
+
 DESCRIPTION = "Organizing numerical model experiment output"
 LONG_DESCRIPTION = """\
 **Experiment** is designed to make it easier to ingest and process the sort of repeated simulations with numerical models that are used in many different fields of science. Although initially designed/intended for use with climate model output archived on desk in hierarchical folders containing NetCDF_ output, it's designed to be more flexible and useful for other applications.
@@ -66,7 +68,7 @@ if DEV:
 
 def _write_version_file():
 
-    fn = os.path.join(os.path.dirname(__file__), 'pyrcel', 'version.py')
+    fn = os.path.join(os.path.dirname(__file__), DISTNAME, 'version.py')
 
     version_str = dedent("""
         __version__ = '{}'
@@ -93,7 +95,7 @@ setup(
     download_url = DOWNLOAD_URL,
 
     packages = find_packages(),
-    package_data = [],
+    package_data = {},
 
     classifiers = CLASSIFIERS
 )
