@@ -1,0 +1,25 @@
+case_path: '{param1}_{param2}'
+cases:
+  param1:
+    longname: Parameter 1
+    vals:
+    - a
+    - b
+    - c
+  param2:
+    longname: Parameter 2
+    vals:
+    - 1
+    - 2
+    - 3
+  param3:
+    longname: Parameter 3
+    vals:
+    - alpha
+    - beta
+data_dir: /Users/daniel/workspace/experiment/experiment/test/data/sample
+name: sample
+output_prefix: '{param1}.{param2}.{param3}.'
+output_suffix: .tape.nc
+timeseries: true
+validate_data: false

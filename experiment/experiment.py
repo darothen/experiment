@@ -172,7 +172,7 @@ class Experiment(object):
                     "Couldn't find data on path {}".format(full_path)
                 )
 
-    def _walk_cases(self):
+    def _walk_cases(self, with_kws=False):
         """ Walk the Experiment case structure and generate paths to
         every single case. """
 
@@ -187,7 +187,11 @@ class Experiment(object):
             case_kws = OrderedDict()
             for kw, bit in zip(path_kws, bits):
                 case_kws[kw] = bit
-            yield self.get_case_path(**case_kws)
+
+            if with_kws:
+                yield self.get_case_path(**case_kws), case_kws
+            else:
+                yield self.get_case_path(**case_kws)
 
     # Properties and accessors
     @property
@@ -342,7 +346,7 @@ class Experiment(object):
             ds = load_variable(field, path_to_file, fix_times=fix_times, **load_kws)
 
             if preprocess is not None:
-                ds = preprocess(ds)
+                ds = preprocess(ds, **case_kws)
 
             return ds
         else:
@@ -362,7 +366,7 @@ class Experiment(object):
                     ds = load_variable(field, path_to_file, fix_times=fix_times, **load_kws)
 
                     if preprocess is not None:
-                        ds = preprocess(ds)
+                        ds = preprocess(ds, **case_kws)
 
                     data[self.case_tuple(*case_bits)] = ds
                 except:
@@ -423,6 +427,38 @@ class Experiment(object):
         return new_data
 
 
+    def to_dict(self):
+        """ Return a dictionary representation of the key configuration for
+        this Experiment. """
+
+        case_dict = dict()
+        for case, data in self._case_data.items():
+            case_dict[case] = dict(longname=data.longname, vals=data.vals)
+
+        return dict(
+            name=self.name, cases=case_dict, timeseries=self.timeseries,
+            case_path=self.case_path, output_prefix=self.output_prefix,
+            output_suffix=self.output_suffix,
+            data_dir=self.data_dir, validate_data=False
+        )
+
+
+    def to_yaml(self, path):
+        """ Write Experiment configuration to a YAML file.
+
+        Parameters
+        ----------
+        path : str
+            Path where to save the Experiment.
+        """
+        logger.info("Serializing Experiment to " + path)
+
+        d = self.to_dict()
+
+        with open(path, 'w') as yaml_file:
+            yaml.dump(d, yaml_file, default_flow_style=False)
+
+
     @classmethod
     def from_yaml(cls, yaml_filename):
         """
@@ -467,7 +503,6 @@ class Experiment(object):
 
         """
         # TODO: Implement YAML validation routine?
-
         # Note - a try/catch block sin't really necessary here because this can
         #        fail in two ways:
         #        1) IO error, which will probably be a FileNotFoundError
@@ -500,7 +535,7 @@ class Experiment(object):
         for case in self._cases:
             base_str += "\n   * {} ({}): ".format(case, self._casenames[case])
             base_str += " [" + \
-                        ", ".join(val for val in self._case_vals[case]) + \
+                        ", ".join(str(val) for val in self._case_vals[case]) + \
                         "]"
         return base_str
 
