@@ -42,6 +42,7 @@ from itertools import product
 
 import numpy as np
 import xarray as xr
+import yaml
 
 from . io import load_variable
 from . convert import create_master
@@ -421,10 +422,83 @@ class Experiment(object):
                 new_data[key] = func(data[key], **func_kws)
         return new_data
 
+
+    @classmethod
+    def from_yaml(cls, yaml_filename):
+        """
+        Create an Experiment from a YAML file.
+
+        The input YAML file should have be structured in the following way:
+
+            ---
+            # Sample Experiment configuration
+            name: my_experiment
+            cases:
+                emis:
+                    long_name: Emissions Scenario
+                    vals:
+                        -policy
+                        - no_policy
+                        - weak_policy
+                model_config:
+                    long_name: Model configuration
+                    vals: [no_clouds, no_sun, no_sun_no_clouds]
+            timeseries: True
+            data_dir: /path/to/my/data
+            # Be sure to use single-quotes here so you don't have to escape the
+            # braces
+            case_path: '{emis}/{model_config}'
+            output_prefix: 'experiment_{emis}_{model_config}.data.'
+            output_suffix: 'tape.nc'
+            validate_data: True
+            ...
+
+        The arguments for constructing an Experiment are read directly from the
+        YAML file, and used for instantiation.
+
+        Parameters
+        ----------
+        yaml_filename: str
+            The path to the YAML file encoding the Experiment to be created
+
+        Returns
+        -------
+        exp : experiment.Experiment
+
+        """
+        # TODO: Implement YAML validation routine?
+
+        # Note - a try/catch block sin't really necessary here because this can
+        #        fail in two ways:
+        #        1) IO error, which will probably be a FileNotFoundError
+        #        2) YAML decoding error.
+        logger.info("Reading Experiment configuration from {}".format(
+            yaml_filename
+        ))
+        with open(yaml_filename, "rb") as f:
+            yaml_data = yaml.safe_load(f)
+
+        exp_kwargs = yaml_data.copy()
+
+        # Try to instantiate cases
+        logger.debug("Reading case")
+        cases = []
+        for case_short, case_kws in exp_kwargs['cases'].items():
+            logger.debug("      {}: {}".format(case_short, case_kws))
+            cases.append(Case(case_short, **case_kws))
+        exp_kwargs['cases'] = cases
+
+        # Create and return the Experiment
+        exp = cls(**exp_kwargs)
+        logger.debug(exp)
+
+        return exp
+
+
     def __repr__(self):
         base_str = "{} -".format(self.name)
         for case in self._cases:
-            base_str += "\n    {}: ".format(self._casenames[case])
+            base_str += "\n   * {} ({}): ".format(case, self._casenames[case])
             base_str += " [" + \
                         ", ".join(val for val in self._case_vals[case]) + \
                         "]"

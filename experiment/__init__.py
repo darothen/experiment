@@ -13,7 +13,7 @@ except ImportError:
             pass
 logging.getLogger(__name__).addHandler(NullHandler())
 
-from . experiment import Experiment
+from . experiment import Experiment, Case
 from . var import Var, VarList
 
 from . version import  __version__
