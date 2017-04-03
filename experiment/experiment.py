@@ -64,6 +64,14 @@ class Experiment(object):
     where the data directory resides, and some high-level details
     about how to process the data.
 
+    The three initialization parameters, `case_path`, `output_prefix`, and
+    `output_suffix`, are used to process the archive/file system hierarchy
+    containing your experiment output. Usually, you can simply use Python
+    format strings with named keywords corresponding to the case names
+    used in constructing your Experiment. However, you can also pass a function
+    which accepts those same named keyword arguments, and processes them; this
+    could be useful if a complex naming scheme was used in your archive.
+
     Attributes
     ----------
     name : str
@@ -98,16 +106,17 @@ class Experiment(object):
         cases : str or list
         data_dir : str
             Path to directory containing the unanalyzed data for this experiment
-        case_path : str (optional)
+        case_path : str or function (optional)
             An optional template for the structure of the folder hierarchy in
             data_dir. If nothing is supplied, then the Experiment will
             automatically infer the hierarchy based on the order of cases. Else,
             you can supply a string with named format directives indicating the
-            case bits to use
-        output_prefix : str
+            case bits to use or a function which creates the path from the
+            case bits
+        output_prefix : str or function
             Global prefix for all output files as a string, which can optionally
             include named format directives indicated which case bit to supply
-        output_suffix : str
+        output_suffix : str or function
             Suffix ending all output files. Defaults to ".nc"
         validate_data : bool, optional (default True)
             Validate that the specified case structure is reflected in the
@@ -115,7 +124,7 @@ class Experiment(object):
         """
 
         self.name = name
-        self.case_path = case_path
+        self._case_path = case_path
 
         # Process the case data, which is an Iterable of Cases
         self._case_data = OrderedDict()
@@ -189,9 +198,9 @@ class Experiment(object):
                 case_kws[kw] = bit
 
             if with_kws:
-                yield self.get_case_path(**case_kws), case_kws
+                yield self.case_path(**case_kws), case_kws
             else:
-                yield self.get_case_path(**case_kws)
+                yield self.case_path(**case_kws)
 
     # Properties and accessors
     @property
@@ -260,21 +269,34 @@ class Experiment(object):
         """ Return the given case bits as a dictionary. """
         return {name: val for name, val in zip(self.cases, case_bits)}
 
-    def get_case_path(self, **case_kws):
+    def case_path(self, **case_kws):
         """ Return the path to a particular set of case's output from this
         experiment, relative to this Experiment's data_dir.
 
         """
-        if self.case_path is None:
+        if self._case_path is None:
             # Combine in the order that the cases were provided
             bits = [case_kws[case] for case in self._cases]
             return os.path.join(*bits)
+        elif callable(self._case_path):
+            return self._case_path(**case_kws)
         else:
-            return self.case_path.format(**case_kws)
+            # Must be a string
+            return self._case_path.format(**case_kws)
 
-    def case_prefix(self, **case_bits):
+    def case_prefix(self, **case_kws):
         """ Return the output prefix for a given case. """
-        return self.output_prefix.format(**case_bits)
+        if callable(self.output_prefix):
+            return self.output_prefix(**case_kws)
+        else:
+            return self.output_prefix.format(**case_kws)
+
+    def case_suffix(self, **case_kws):
+        """ Return the output suffix for a given case. """
+        if callable(self.output_suffix):
+            return self.output_suffix(**case_kws)
+        else:
+            return self.output_suffix.format(**case_kws)
 
     # Loading methods
     def load(self, var, fix_times=False, master=False, preprocess=None,
@@ -324,6 +346,9 @@ class Experiment(object):
 
         """
 
+        prefix = self.case_prefix(**case_kws)
+        suffix = self.case_suffix(**case_kws)
+
         is_var = not isinstance(var, basestring)
         if is_var:
             field = var.varname
@@ -333,12 +358,11 @@ class Experiment(object):
 
         if case_kws:
             # Load/return a single case
-            prefix = self.case_prefix(**case_kws)
 
             path_to_file = os.path.join(
                 self.data_dir,
-                self.get_case_path(**case_kws),
-                self.case_prefix(**case_kws) + field + self.output_suffix,
+                self.case_path(**case_kws),
+                prefix + field + suffix,
             )
             logger.debug("{} - loading {} timeseries from {}".format(
                 self.name, field, path_to_file
@@ -360,8 +384,8 @@ class Experiment(object):
                 try:
                     path_to_file = os.path.join(
                         self.data_dir,
-                        self.get_case_path(**case_kws),
-                        self.case_prefix(**case_kws) + field + self.output_suffix,
+                        self.case_path(**case_kws),
+                        prefix + field + suffix,
                     )
                     ds = load_variable(field, path_to_file, fix_times=fix_times, **load_kws)
 
@@ -437,7 +461,7 @@ class Experiment(object):
 
         return dict(
             name=self.name, cases=case_dict, timeseries=self.timeseries,
-            case_path=self.case_path, output_prefix=self.output_prefix,
+            case_path=self._case_path, output_prefix=self.output_prefix,
             output_suffix=self.output_suffix,
             data_dir=self.data_dir, validate_data=False
         )
@@ -452,6 +476,10 @@ class Experiment(object):
             Path where to save the Experiment.
         """
         logger.info("Serializing Experiment to " + path)
+
+        if (callable(self.output_suffix) or callable(self.output_prefix)):
+            raise ValueError("Cannot serialize function-based suffix/prefix "
+                             "naming schemes as yaml")
 
         d = self.to_dict()
 
@@ -557,7 +585,7 @@ class SingleCaseExperiment(Experiment):
         cases = [Case(name, name, [name, ]), ]
         super(self.__class__, self).__init__(name, cases, validate_data=False, **kwargs)
 
-    def get_case_path(self, *args):
+    def case_path(self, **case_kws):
         """ Overridden get_case_path() method which simply returns the
         data_dir, since that's where the data is held.
 

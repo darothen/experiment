@@ -20,8 +20,7 @@ case_emis = \
 case_model_config = \
     Case('model_config', 'Model configuration',
          ['no_clouds', 'no_sun', 'no_sun_no_clouds'])
-
-my_experiment = Experiment(
+default_exp_kws = dict(
     name='my_experiment',
     cases = [case_emis, case_model_config],
     timeseries=True, data_dir='/path/to/my/data',
@@ -30,6 +29,12 @@ my_experiment = Experiment(
     output_suffix='.tape.nc',
     validate_data=False
 )
+
+my_experiment = Experiment(**default_exp_kws)
+def make_exp(**kwargs):
+    kws = dict(default_exp_kws)
+    kws.update(**kwargs)
+    return Experiment(**kws)
 
 class TestExperiment(unittest.TestCase):
 
@@ -121,3 +126,66 @@ class TestExperiment(unittest.TestCase):
         exp = Experiment.from_yaml(path_to_test)
 
         self.assertEqual(repr(exp), repr(my_experiment))
+
+    def test_case_path_formatting(self):
+        """ Test passing different types of arguments to Experiment for
+        creating case paths. """
+
+        exp_all_str = make_exp(
+            case_path="./", output_prefix="{emis}.{model_config}",
+            output_suffix=".nc"
+        )
+        case_kws = dict(emis='policy', model_config='no_clouds')
+        self.assertEqual("./",
+                         exp_all_str.case_path(**case_kws))
+        self.assertEqual("policy.no_clouds",
+                         exp_all_str.case_prefix(**case_kws))
+        self.assertEqual(".nc",
+                         exp_all_str.case_suffix(**case_kws))
+
+        exp_no_case_path = make_exp(
+            output_prefix="{emis}.{model_config}",
+            output_suffix=".nc"
+        )
+        case_kws = dict(emis='policy', model_config='no_clouds')
+        self.assertEqual("policy/no_clouds",
+                         exp_no_case_path.case_path(**case_kws))
+        self.assertEqual("policy.no_clouds",
+                         exp_no_case_path.case_prefix(**case_kws))
+        self.assertEqual(".nc",
+                         exp_no_case_path.case_suffix(**case_kws))
+
+        def _prefix_func(emis, model_config):
+            return "my_emis-{emis}.my_cfg-{model_config}".format(
+                emis=emis, model_config=model_config
+            )
+        exp_prefix_func = make_exp(
+            case_path="./", output_prefix=_prefix_func,
+            output_suffix=".nc"
+        )
+        case_kws = dict(emis='policy', model_config='no_clouds')
+        self.assertEqual("./",
+                         exp_prefix_func.case_path(**case_kws))
+        self.assertEqual("my_emis-policy.my_cfg-no_clouds",
+                         exp_prefix_func.case_prefix(**case_kws))
+        self.assertEqual(".nc",
+                         exp_prefix_func.case_suffix(**case_kws))
+
+
+        def _suffix_func(emis, model_config):
+            return ".e1-{0}.ml2-{1}.txt".format(
+                emis[0], model_config[-2:]
+            )
+        exp_suffix_func = make_exp(
+            case_path="./", output_prefix="{emis}.{model_config}",
+            output_suffix=_suffix_func
+        )
+        case_kws = dict(emis='policy', model_config='no_clouds')
+        self.assertEqual("./",
+                         exp_suffix_func.case_path(**case_kws))
+        self.assertEqual("policy.no_clouds",
+                         exp_suffix_func.case_prefix(**case_kws))
+        self.assertEqual(".e1-p.ml2-ds.txt",
+                         exp_suffix_func.case_suffix(**case_kws))
+
+
