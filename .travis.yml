@@ -28,6 +28,9 @@ before_install:
 install:
     - conda env create --file ci/requirements-$CONDA_ENV.yml
     - source activate test_env
-    - python setup.py install
+    - pip install -e .
 
-# TODO: Add coveralls and pytest
+script:
+    - py.test experiment
+
+# TODO: Add coveralls
