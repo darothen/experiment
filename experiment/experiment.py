@@ -346,9 +346,6 @@ class Experiment(object):
 
         """
 
-        prefix = self.case_prefix(**case_kws)
-        suffix = self.case_suffix(**case_kws)
-
         is_var = not isinstance(var, basestring)
         if is_var:
             field = var.varname
@@ -358,6 +355,8 @@ class Experiment(object):
 
         if case_kws:
             # Load/return a single case
+            prefix = self.case_prefix(**case_kws)
+            suffix = self.case_suffix(**case_kws)
 
             path_to_file = os.path.join(
                 self.data_dir,
@@ -381,6 +380,9 @@ class Experiment(object):
             for case_bits in self.all_cases():
                 case_kws = self.get_case_kws(*case_bits)
 
+                prefix = self.case_prefix(**case_kws)
+                suffix = self.case_suffix(**case_kws)
+                
                 try:
                     path_to_file = os.path.join(
                         self.data_dir,
@@ -396,7 +398,7 @@ class Experiment(object):
                 except:
                     logger.warn("Could not load case %r" % case_kws)
                     data[self.case_tuple(*case_bits)] = xr.Dataset({field: np.nan})
-
+                    
             if is_var:
                 var._data = data
                 var._loaded = True
