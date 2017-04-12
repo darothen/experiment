@@ -202,6 +202,29 @@ class Experiment(object):
             else:
                 yield self.case_path(**case_kws)
 
+
+    def walk_files(self, field):
+        """ Walk through all the files in this experiment with the given output
+        field name
+
+        Returns
+        -------
+        kwargs dictionary and filename, as a generator
+
+        """
+        for case_bits in self.all_cases():
+            case_kws = self.get_case_kws(*case_bits)
+
+            prefix = self.case_prefix(**case_kws)
+            suffix = self.case_suffix(**case_kws)
+            path_to_file = os.path.join(
+                self.data_dir,
+                self.case_path(**case_kws),
+                prefix + field + suffix,
+            )
+
+            yield case_kws, path_to_file
+
     # Properties and accessors
     @property
     def cases(self):
@@ -376,20 +399,10 @@ class Experiment(object):
 
             data = dict()
 
-            # Load/return all cases
-            for case_bits in self.all_cases():
-                case_kws = self.get_case_kws(*case_bits)
+            for filename in self.walk_files(field):
 
-                prefix = self.case_prefix(**case_kws)
-                suffix = self.case_suffix(**case_kws)
-                
                 try:
-                    path_to_file = os.path.join(
-                        self.data_dir,
-                        self.case_path(**case_kws),
-                        prefix + field + suffix,
-                    )
-                    ds = load_variable(field, path_to_file, fix_times=fix_times, **load_kws)
+                    ds = load_variable(field, filename, fix_times=fix_times, **load_kws)
 
                     if preprocess is not None:
                         ds = preprocess(ds, **case_kws)
@@ -398,7 +411,7 @@ class Experiment(object):
                 except:
                     logger.warn("Could not load case %r" % case_kws)
                     data[self.case_tuple(*case_bits)] = xr.Dataset({field: np.nan})
-                    
+
             if is_var:
                 var._data = data
                 var._loaded = True
