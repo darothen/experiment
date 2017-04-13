@@ -33,7 +33,7 @@ leaf factor.
 """
 from __future__ import print_function
 
-import logging
+# import logging
 import os
 import warnings
 
@@ -44,10 +44,11 @@ import numpy as np
 import xarray as xr
 import yaml
 
+from . import logger
 from . io import load_variable
 from . convert import create_master
 
-logger = logging.getLogger(__name__)
+# logger = logging.getLogger(__name__)
 
 Case = namedtuple('case', ['shortname', 'longname', 'vals'])
 

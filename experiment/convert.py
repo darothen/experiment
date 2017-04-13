@@ -4,6 +4,8 @@ import warnings
 from numpy import empty, nditer
 from xarray import DataArray, Dataset
 
+from . import logger
+
 #: Hack for Py2/3 basestring type compatibility
 if 'basestring' not in globals():
     basestring = str
@@ -88,7 +90,9 @@ def _master_dataarray(exp, data_dict):
     name = test_da.name
 
     new_coords = test_da.to_dataset().coords
+    logger.debug("Creating master dataarray")
     for case in exp.cases:
+        logger.debug("   " + case)
         new_coords[case] = exp._case_data[case].vals
 
     new_dims = list(exp.cases) + list(test_da.dims)
@@ -142,7 +146,9 @@ def _master_dataset(exp, data_dict, new_fields):
         ds_new[case] = vals
         ds_new[case].attrs['long_name'] = longname
 
+    logger.debug("Creating master dataset")
     for var in proto.data_vars:
+        logger.debug("   "+var)
         data_dict_as_da = exp.apply_to_all(data_dict, lambda x: x[var])
         new_da = _master_dataarray(exp, data_dict_as_da)
         ds_new[var] = new_da

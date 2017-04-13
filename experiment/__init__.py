@@ -12,6 +12,7 @@ except ImportError:
         def emit(self, record):
             pass
 logging.getLogger(__name__).addHandler(NullHandler())
+logger = logging.getLogger(__name__)
 
 from . experiment import Experiment, Case
 from . var import Var, VarList
