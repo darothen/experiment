@@ -399,7 +399,7 @@ class Experiment(object):
 
             data = dict()
 
-            for filename in self.walk_files(field):
+            for case_kws, filename in self.walk_files(field):
 
                 try:
                     ds = load_variable(field, filename, fix_times=fix_times, **load_kws)
@@ -407,10 +407,10 @@ class Experiment(object):
                     if preprocess is not None:
                         ds = preprocess(ds, **case_kws)
 
-                    data[self.case_tuple(*case_bits)] = ds
+                    data[self.case_tuple(**case_kws)] = ds
                 except:
                     logger.warn("Could not load case %r" % case_kws)
-                    data[self.case_tuple(*case_bits)] = xr.Dataset({field: np.nan})
+                    data[self.case_tuple(**case_kws)] = xr.Dataset({field: np.nan})
 
             if is_var:
                 var._data = data

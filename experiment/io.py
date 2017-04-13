@@ -61,6 +61,7 @@ def load_variable(var_name, path_to_file, squeeze=False,
             del ds[field].attrs['missing_value']
 
     # Lazy decode CF
-    ds = xr.decode_cf(ds)
+    # TODO: There's potentially a bug where decode_cf eagerly loads dask arrays
+    # ds = xr.decode_cf(ds)
 
     return ds
