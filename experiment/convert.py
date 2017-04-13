@@ -4,7 +4,6 @@ import warnings
 from numpy import empty, nditer
 from xarray import DataArray, Dataset
 
-
 #: Hack for Py2/3 basestring type compatibility
 if 'basestring' not in globals():
     basestring = str
@@ -86,6 +85,7 @@ def _master_dataarray(exp, data_dict):
 
     test_case = next(exp.all_cases())
     test_da = data_dict[test_case]
+    name = test_da.name
 
     new_coords = test_da.to_dataset().coords
     for case in exp.cases:
@@ -96,6 +96,7 @@ def _master_dataarray(exp, data_dict):
     new_da = DataArray(stacked_data, coords=new_coords,
                        dims=new_dims)
     new_da = copy_attrs(test_da, new_da)
+    new_da.name = name
 
     return new_da
 
@@ -124,62 +125,38 @@ def _stack_dims(data, cases, set_cases, exp):
 
         return dstack(to_stack)
 
-# def _master_dataset(exp, data_dict, new_fields):
-#
-#     all_case_vals = exp.all_case_vals()
-#     first_case = next(exp.all_cases())
-#     proto = data_dict[first_case]
-#
-#     n_case_vals = [ len(case_vals) for case_vals in all_case_vals ]
-#     n_cases = len(n_case_vals)
-#
-#     # Create the new Dataset to populate
-#     ds_new = Dataset()
-#
-#     # Add the case coordinates
-#     for case, long, vals in exp.itercases():
-#         ds_new[case] = vals
-#         ds_new[case].attrs['long_name'] = long
-#
-#     for f in proto.variables:
-#         dsf = proto.variables[f]
-#
-#         # Copy or update the coords/variable data
-#         if f in proto.coords:
-#             ds_new.coords[f] = (dsf.dims, dsf.values)
-#         else:
-#             if f in new_fields:
-#
-#                 new_dims = exp.cases + [str(x) for x in dsf.dims]
-#                 new_values = empty(n_case_vals + list(dsf.values.shape))
-#
-#                 it = nditer(empty(n_case_vals), flags=['multi_index', ])
-#                 while not it.finished:
-#                     indx = it.multi_index
-#                     case_indx = tuple([ all_case_vals[n][i] \
-#                                       for i, n in zip(indx, range(n_cases)) ])
-#                     new_values[indx] = data_dict[case_indx].variables[f]
-#                     it.iternext()
-#
-#                 ds_new[f] = (new_dims, new_values)
-#             else:
-#                 ds_new[f] = (dsf.dims, dsf.values)
-#
-#         # Set attributes for the variable
-#         for att, val in dsf.attrs.items():
-#             ds_new[f].attrs[att] = val
-#
-#     # Set global attributes
-#     for att, val in proto.attrs.items():
-#         ds_new.attrs[att] = val
-#
-#     return ds_new
+def _master_dataset(exp, data_dict, new_fields):
+
+    all_case_vals = exp.all_case_vals()
+    first_case = next(exp.all_cases())
+    proto = data_dict[first_case]
+
+    n_case_vals = [len(case_vals) for case_vals in all_case_vals]
+    n_cases = len(n_case_vals)
+
+    # Create the new Dataset to populate
+    ds_new = Dataset()
+
+    # Add the case coordinates
+    for case, longname, vals in exp.itercases():
+        ds_new[case] = vals
+        ds_new[case].attrs['long_name'] = longname
+
+    for var in proto.data_vars:
+        data_dict_as_da = exp.apply_to_all(data_dict, lambda x: x[var])
+        new_da = _master_dataarray(exp, data_dict_as_da)
+        ds_new[var] = new_da
+
+    ds_new = copy_attrs(proto, ds_new)
+    return ds_new
+
 
 def _get_dataset_attr(ds, attr_key):
     if attr_key in ds.attrs:
         return ds.attrs[attr_key]
     else:
         return None
+
 
 def _get_dataset_names(ds, field):
     """ If possible, return the standard, long, and var names for a
