@@ -44,6 +44,8 @@ import numpy as np
 import xarray as xr
 import yaml
 
+from tqdm import tqdm
+
 from . import logger
 from . io import load_variable
 from . convert import create_master
@@ -456,10 +458,17 @@ class Experiment(object):
         """ Helper function to quickly apply a function all the datasets
         in a given collection. """
         keys = list(data.keys())
+        n_tot = len(keys)
         new_data = {}
-        for key in keys:
-            if verbose:
-                print(key)
+
+        if verbose:
+            fn_name = func.__name__
+            desc_str = "apply_to_all:{}".format(fn_name)
+            iterator = tqdm(keys, desc=desc_str, total=n_tot)
+        else:
+            iterator = keys
+        
+        for key in iterator:
             if isinstance(data[key], dict):
                 new_data[key] = apply_to_all(data[key], func, **func_kws)
             else:
