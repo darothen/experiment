@@ -149,7 +149,28 @@ def _master_dataset(exp, data_dict, new_fields):
     logger.debug("Creating master dataset")
     for var in proto.data_vars:
         logger.debug("   "+var)
-        data_dict_as_da = exp.apply_to_all(data_dict, lambda x: x[var])
+
+        # Ensure that all the data has the same dimensions
+        bad_keys = []
+        data_dict_as_da = {}
+        for key, ds in data_dict.items():
+            try:
+                data_dict_as_da[key] = ds[var]
+            except KeyError:
+                bad_keys.append(key)
+                continue
+        if len(data_dict) <= 1:
+            raise ValueError("Couldn't coerce data for master array "
+                             "concatenation.")
+        else:
+            ref_da = next(iter(data_dict_as_da.values()))
+            for key in bad_keys:
+                faux_da = DataArray(empty(ref_da.shape),
+                                    dims=ref_da.coords)
+                #for case, val in key.items():
+                #    faux_da[case] = val
+                data_dict_as_da[key] = faux_da
+        # data_dict_as_da = exp.apply_to_all(data_dict, lambda x: x[var])
         new_da = _master_dataarray(exp, data_dict_as_da)
         ds_new[var] = new_da
 
