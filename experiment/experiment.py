@@ -453,6 +453,21 @@ class Experiment(object):
         return create_master(self, var, data, **kwargs)
 
 
+    def master_to_datadict(self, data):
+        """ Convert a master Dataset to a data dictionary containing separate
+        Datasets for each case. """
+        dd = {}
+        for case_bits in self.all_cases():
+            case_kws = self.get_case_kws(*case_bits)
+            dd[case_bits] = data.sel(**case_kws)
+        return dd
+
+
+    def datadict_to_master(self, var, data, **kwargs):
+        """ Alias for `create_master` """
+        return self.create_master(var, data, **kwargs)
+
+
     @staticmethod
     def apply_to_all(data, func, func_kws={}, verbose=False):
         """ Helper function to quickly apply a function all the datasets
