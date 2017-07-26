@@ -171,7 +171,6 @@ class TestExperiment(unittest.TestCase):
         self.assertEqual(".nc",
                          exp_prefix_func.case_suffix(**case_kws))
 
-
         def _suffix_func(emis, model_config):
             return ".e1-{0}.ml2-{1}.txt".format(
                 emis[0], model_config[-2:]
@@ -188,4 +187,17 @@ class TestExperiment(unittest.TestCase):
         self.assertEqual(".e1-p.ml2-ds.txt",
                          exp_suffix_func.case_suffix(**case_kws))
 
+    def test_case_path_files_matching(self):
+        """ Test passing different files from paths to Experiment for
+        matching any of its cases' value list. """
 
+        exp_all_str = make_exp(
+            case_path="{emis}/{model_config}",
+            output_prefix="experiment_{emis}_{model_config}.data.",
+            output_suffix=".tape.nc"
+        )
+        case_kws = dict(emis='policy', model_config='no_clouds')
+        # import ipdb; ipdb.set_trace()
+
+        self.assertEqual(["/path/to/my/data/policy/no_clouds/experiment_policy_no_clouds.data.test.tape.nc"],
+                         exp_all_str.get_file_fieldcases('test', **case_kws))
