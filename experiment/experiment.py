@@ -299,7 +299,7 @@ class Experiment(object):
             experiment.
 
         """
-        return [fil for case, fil in self.walk_files(field) if case_kws == case] 
+        return [fn for case, fn in self.walk_files(field) if case_kws == case] 
 
     def get_case_bits(self, **case_kws):
         """ Return the given case keywords in the order they're defined in
